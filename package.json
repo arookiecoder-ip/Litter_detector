@@ -1,0 +1,46 @@
+{
+  "name": "litterwatch",
+  "version": "1.0.0",
+  "description": "AI-powered real-time litter detection webapp",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "npx nodemon backend/server.js",
+    "tunnel": "npx concurrently \"npm run dev\" \"npx localtunnel --port 5000\"",
+    "test": "jest --testPathPattern=test/ --forceExit --detectOpenHandles",
+    "test:coverage": "jest --coverage --testPathPattern=test/ --forceExit"
+  },
+  "keywords": [
+    "litter",
+    "detection",
+    "tensorflow",
+    "AI",
+    "computer-vision"
+  ],
+  "author": "",
+  "license": "MIT",
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 30000
+  },
+  "devDependencies": {
+    "jest": "^30.3.0",
+    "mongodb-memory-server": "^11.0.1",
+    "supertest": "^7.2.2"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "express-validator": "^7.3.2",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.4.1",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "node-schedule": "^2.1.1",
+    "winston": "^3.19.0"
+  }
+}

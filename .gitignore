@@ -1,0 +1,38 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Environment
+backend/.env
+.env
+
+# Logs
+backend/logs/
+*.log
+
+# SSL certificates
+ssl/
+*.pem
+*.key
+*.cert
+
+# Uploads (runtime)
+uploads/
+
+# Build artifacts
+dist/
+build/
+.next/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test coverage
+coverage/

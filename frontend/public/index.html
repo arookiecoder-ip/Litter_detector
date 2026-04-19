@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Litter Detection System — Real-time AI-powered litter detection and evidence capture." />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>Litter Detection System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+  <!-- COCO-SSD -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ─── CONSENT MODAL ─── -->
+<div id="consentModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="consentTitle">
+  <div class="modal-box">
+    <div class="modal-icon">🌍</div>
+    <h2 id="consentTitle">Litter Detection System</h2>
+    <p class="modal-sub">Real-time AI surveillance to keep communities clean.</p>
+    <hr class="modal-hr" />
+    <h3>Privacy Notice</h3>
+    <ul class="consent-list">
+      <li>📷 Camera access is used <strong>only</strong> for local detection — no stream is uploaded.</li>
+      <li>🖼️ Photos are captured <strong>only when litter + a person is confirmed</strong>.</li>
+      <li>📍 Location data is optional and only used to tag evidence.</li>
+      <li>🔐 All data is encrypted in transit (HTTPS) and stored securely.</li>
+      <li>🗑️ Evidence auto-expires after 90 days (GDPR compliance).</li>
+    </ul>
+    <div class="modal-actions">
+      <button id="acceptConsent" class="btn btn-primary">I Understand &amp; Accept</button>
+      <button id="declineConsent" class="btn btn-ghost">Decline</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── AUTH MODAL ─── -->
+<div id="authModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <div class="modal-box modal-box--auth">
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" data-tab="login">Login</button>
+      <button class="auth-tab" id="tabRegister" data-tab="register">Register</button>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" class="auth-form" novalidate>
+      <h2 id="authTitle" class="sr-only">Authentication</h2>
+      <div class="form-group">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email" required />
+      </div>
+      <div class="form-group">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required />
+      </div>
+      <div id="loginError" class="form-error hidden"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="loginSubmit">Login</button>
+    </form>
+
+    <!-- Register Form -->
+    <form id="registerForm" class="auth-form hidden" novalidate>
+      <div class="form-group">
+        <label for="regName">Full Name</label>
+        <input type="text" id="regName" placeholder="Jane Smith" autocomplete="name" required />
+      </div>
+      <div class="form-group">
+        <label for="regEmail">Email</label>
+        <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email" required />
+      </div>
+      <div class="form-group">
+        <label for="regPassword">Password</label>
+        <input type="password" id="regPassword" placeholder="Min 8 chars, mixed case + number" autocomplete="new-password" required />
+      </div>
+      <div id="registerError" class="form-error hidden"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="registerSubmit">Create Account</button>
+    </form>
+  </div>
+</div>
+
+<!-- ─── NOTIFICATION ─── -->
+<div id="notification" class="notification hidden" role="alert" aria-live="polite"></div>
+
+<!-- ─── APP SHELL ─── -->
+<div id="app" class="hidden">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <span class="header-logo">🌿</span>
+        <span class="header-title">LitterWatch</span>
+        <span class="header-badge">AI</span>
+      </div>
+      <nav class="header-nav">
+        <button class="nav-btn active" id="navCamera" data-view="camera">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span>Camera</span>
+        </button>
+        <button class="nav-btn" id="navCaptures" data-view="captures">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>Evidence</span>
+        </button>
+        <button class="nav-btn" id="navDashboard" data-view="dashboard">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span>Stats</span>
+        </button>
+      </nav>
+      <div class="header-user">
+        <span id="userGreeting" class="user-greeting"></span>
+        <button class="btn btn-ghost btn-sm" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─── CAMERA VIEW ─── -->
+  <section id="viewCamera" class="view active">
+    <div class="camera-layout">
+
+      <!-- Video Feed Panel -->
+      <div class="camera-panel">
+        <div class="camera-frame" id="cameraFrame">
+          <video id="videoFeed" autoplay playsinline muted></video>
+          <canvas id="overlayCanvas"></canvas>
+          <div class="camera-hud">
+            <span class="hud-status" id="hudStatus">
+              <span class="hud-dot" id="hudDot"></span>
+              <span id="hudStatusText">Initializing…</span>
+            </span>
+            <span class="hud-fps" id="hudMotion">Motion: 0.0%</span>
+            <span class="hud-fps" id="hudFps">-- FPS</span>
+          </div>
+          <div class="camera-corner tl"></div>
+          <div class="camera-corner tr"></div>
+          <div class="camera-corner bl"></div>
+          <div class="camera-corner br"></div>
+        </div>
+
+        <!-- Hidden capture canvas -->
+        <canvas id="captureCanvas" style="display:none;"></canvas>
+
+        <div class="camera-controls">
+          <button class="btn btn-danger" id="startCameraBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+            Start Camera
+          </button>
+          <button class="btn btn-secondary hidden" id="stopCameraBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>
+            Stop
+          </button>
+          <button class="btn btn-primary hidden" id="manualCaptureBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Manual Capture
+          </button>
+        </div>
+      </div>
+
+      <!-- Detection Info Panel -->
+      <div class="detection-panel">
+        <div class="panel-header">
+          <h2>Detection Status</h2>
+          <div class="model-status" id="modelStatus">
+            <span class="spinner" id="modelSpinner"></span>
+            <span id="modelStatusText">Loading model…</span>
+          </div>
+        </div>
+
+        <div class="detection-stats">
+          <div class="stat-card stat-card--litter">
+            <div class="stat-value" id="statLitter">0</div>
+            <div class="stat-label">Litter Items</div>
+          </div>
+          <div class="stat-card stat-card--person">
+            <div class="stat-value" id="statPerson">0</div>
+            <div class="stat-label">People</div>
+          </div>
+          <div class="stat-card stat-card--total">
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">Total Objects</div>
+          </div>
+          <div class="stat-card stat-card--captures">
+            <div class="stat-value" id="statCaptures">0</div>
+            <div class="stat-label">Captures Today</div>
+          </div>
+        </div>
+
+        <div class="detection-items" id="detectionItems">
+          <div class="empty-state">
+            <span>📡</span>
+            <p>Waiting for detection…</p>
+          </div>
+        </div>
+
+        <div class="threshold-controls">
+          <label>
+            Litter Confidence: <strong id="litterThresholdVal">35%</strong>
+            <input type="range" id="litterThreshold" min="30" max="95" value="35" />
+          </label>
+          <label>
+            Person Confidence: <strong id="personThresholdVal">40%</strong>
+            <input type="range" id="personThreshold" min="30" max="95" value="40" />
+          </label>
+          <label>
+            Motion Spike: <strong id="motionThresholdVal">2.0%</strong>
+            <input type="range" id="motionThreshold" min="0.5" max="15" value="2.0" step="0.5" />
+          </label>
+          <label>
+            Detection Speed: <strong id="detectionFpsVal">10 FPS</strong>
+            <input type="range" id="detectionFps" min="1" max="15" value="10" />
+          </label>
+        </div>
+
+        <!-- Alert when litter detected -->
+        <div class="litter-alert hidden" id="litterAlertBox">
+          <div class="alert-icon">⚠️</div>
+          <div class="alert-body">
+            <strong>Litter Detected!</strong>
+            <p id="alertDetails"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── CAPTURES VIEW ─── -->
+  <section id="viewCaptures" class="view hidden">
+    <div class="captures-layout">
+      <div class="captures-toolbar">
+        <h2>Evidence Captures</h2>
+        <div class="captures-filters">
+          <select id="statusFilter">
+            <option value="">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="verified">Verified</option>
+            <option value="resolved">Resolved</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
+          <button class="btn btn-sm btn-secondary" id="refreshCaptures">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="captures-grid" id="capturesGrid">
+        <div class="loading-state">
+          <div class="spinner-large"></div>
+          <p>Loading captures…</p>
+        </div>
+      </div>
+      <div class="captures-pagination" id="capturesPagination"></div>
+    </div>
+  </section>
+
+  <!-- ─── DASHBOARD VIEW ─── -->
+  <section id="viewDashboard" class="view hidden">
+    <div class="dashboard-layout">
+      <h2>Session Statistics</h2>
+      <div class="dashboard-grid">
+        <div class="dash-card">
+          <div class="dash-card-icon">📸</div>
+          <div class="dash-card-value" id="dashTotalCaptures">0</div>
+          <div class="dash-card-label">Total Captures</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-icon">✅</div>
+          <div class="dash-card-value" id="dashVerified">0</div>
+          <div class="dash-card-label">Verified</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-icon">⏳</div>
+          <div class="dash-card-value" id="dashPending">0</div>
+          <div class="dash-card-label">Pending Review</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-icon">🎯</div>
+          <div class="dash-card-value" id="dashAvgSeverity">—</div>
+          <div class="dash-card-label">Avg. Severity</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-icon">🤖</div>
+          <div class="dash-card-value" id="dashDetections">0</div>
+          <div class="dash-card-label">AI Detections (session)</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-icon">🕒</div>
+          <div class="dash-card-value" id="dashLastCapture">—</div>
+          <div class="dash-card-label">Last Capture</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div><!-- #app -->
+
+<!-- ─── CAPTURE DETAIL MODAL ─── -->
+<div id="captureModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="captureModalTitle">
+  <div class="modal-box modal-box--capture">
+    <button class="modal-close" id="captureModalClose" aria-label="Close">×</button>
+    <h3 id="captureModalTitle">Capture Detail</h3>
+    <div id="captureModalBody"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
